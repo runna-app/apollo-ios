@@ -117,18 +117,19 @@ create_xcframework() {
 
 generate_checksum() {
     local framework_name="$1"
-    local framework_path="$PROJECT_BUILD_DIR/$framework_name.xcframework"
+    local zip_path="$PROJECT_BUILD_DIR/$framework_name.xcframework.zip"
     
-    if [ -d "$framework_path" ]; then
-        echo "🔐 Generating checksum for $framework_name.xcframework..."
-        local checksum=$(cd "$PROJECT_BUILD_DIR" && tar -czf - "$framework_name.xcframework" | shasum -a 256 | cut -d' ' -f1)
+    if [ -f "$zip_path" ]; then
+        echo "🔐 Generating checksum for $framework_name.xcframework.zip..."
+        local checksum=$(swift package compute-checksum "$zip_path")
         echo "$checksum" > "$PROJECT_BUILD_DIR/$framework_name.xcframework.sha256"
         echo "📝 Checksum: $checksum"
         echo "💾 Saved to: $framework_name.xcframework.sha256"
+    else
+        echo "❌ Error: $framework_name.xcframework.zip not found at $zip_path"
+        exit 1
     fi
 }
-
-generate_checksum "$PACKAGE_NAME"
 
 # Build the specified framework
 build_framework "iphonesimulator" "generic/platform=iOS Simulator" "$PACKAGE_NAME"
@@ -138,6 +139,9 @@ echo "🏗️ Builds completed successfully."
 
 # Create the XCFramework
 create_xcframework "$PACKAGE_NAME"
+
+# Generate the checksum
+generate_checksum "$PACKAGE_NAME"
 
 echo "🎉 XCFramework build completed!"
 echo "📁 Location: $PROJECT_BUILD_DIR/"
