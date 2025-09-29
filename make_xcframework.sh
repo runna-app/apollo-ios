@@ -33,6 +33,8 @@ build_framework() {
     local sdk="$1"
     local destination="$2"
     local scheme="$3"
+    local deployment_target="$4"
+    local platform_prefix="$5"
 
     local XCODEBUILD_ARCHIVE_PATH="$PROJECT_BUILD_DIR/$scheme-$sdk.xcarchive"
 
@@ -50,7 +52,7 @@ build_framework() {
         -derivedDataPath "$DERIVED_DATA_PATH" \
         -destination "$destination" \
         SKIP_INSTALL=NO \
-        IPHONEOS_DEPLOYMENT_TARGET=17.0 \
+        $deployment_target \
         OTHER_SWIFT_FLAGS="-emit-module-interface -enable-library-evolution -D XCFRAMEWORK_BUILD"; then
         echo "❌ Build failed for $scheme on $sdk"
         exit 1
@@ -75,7 +77,26 @@ build_framework() {
             if [ -d "$arch_dir" ]; then
                 arch_name=$(basename "$arch_dir")
                 if [ -f "$arch_dir/$scheme.swiftinterface" ]; then
-                    cp "$arch_dir/$scheme.swiftinterface" "$FRAMEWORK_MODULES_PATH/$scheme.swiftmodule/$arch_name-apple-ios$([ "$sdk" = "iphonesimulator" ] && echo "-simulator").swiftinterface"
+                    # Determine the correct platform identifier for swiftinterface
+                    local platform_id=""
+                    case "$sdk" in
+                        "iphonesimulator")
+                            platform_id="$arch_name-apple-ios-simulator"
+                            ;;
+                        "iphoneos")
+                            platform_id="$arch_name-apple-ios"
+                            ;;
+                        "watchsimulator")
+                            platform_id="$arch_name-apple-watchos-simulator"
+                            ;;
+                        "watchos")
+                            platform_id="$arch_name-apple-watchos"
+                            ;;
+                        *)
+                            platform_id="$arch_name-apple-$platform_prefix$([ "$sdk" = *"simulator" ] && echo "-simulator")"
+                            ;;
+                    esac
+                    cp "$arch_dir/$scheme.swiftinterface" "$FRAMEWORK_MODULES_PATH/$scheme.swiftmodule/$platform_id.swiftinterface"
                 fi
             fi
         done
@@ -95,18 +116,40 @@ create_xcframework() {
     
     rm -rf "$framework_name.xcframework"
     
+    # Build the XCFramework with all platforms
+    local xcframework_args=()
+    
+    # Add iOS frameworks
+    xcframework_args+=(-framework "$framework_name-iphonesimulator.xcarchive/Products/usr/local/lib/$framework_name.framework")
+    xcframework_args+=(-framework "$framework_name-iphoneos.xcarchive/Products/usr/local/lib/$framework_name.framework")
+    
+    # Add watchOS frameworks
+    xcframework_args+=(-framework "$framework_name-watchsimulator.xcarchive/Products/usr/local/lib/$framework_name.framework")
+    xcframework_args+=(-framework "$framework_name-watchos.xcarchive/Products/usr/local/lib/$framework_name.framework")
+    
     xcodebuild -create-xcframework \
-        -framework "$framework_name-iphonesimulator.xcarchive/Products/usr/local/lib/$framework_name.framework" \
-        -framework "$framework_name-iphoneos.xcarchive/Products/usr/local/lib/$framework_name.framework" \
+        "${xcframework_args[@]}" \
         -output "$framework_name.xcframework"
     
     # Copy dSYMs if they exist
+    # iOS Simulator
     if [ -d "$framework_name-iphonesimulator.xcarchive/dSYMs" ]; then
         cp -r "$framework_name-iphonesimulator.xcarchive/dSYMs" "$framework_name.xcframework/ios-arm64_x86_64-simulator/" 2>/dev/null || true
     fi
     
+    # iOS Device
     if [ -d "$framework_name-iphoneos.xcarchive/dSYMs" ]; then
         cp -r "$framework_name-iphoneos.xcarchive/dSYMs" "$framework_name.xcframework/ios-arm64/" 2>/dev/null || true
+    fi
+    
+    # watchOS Simulator
+    if [ -d "$framework_name-watchsimulator.xcarchive/dSYMs" ]; then
+        cp -r "$framework_name-watchsimulator.xcarchive/dSYMs" "$framework_name.xcframework/watchos-arm64_i386_x86_64-simulator/" 2>/dev/null || true
+    fi
+    
+    # watchOS Device
+    if [ -d "$framework_name-watchos.xcarchive/dSYMs" ]; then
+        cp -r "$framework_name-watchos.xcarchive/dSYMs" "$framework_name.xcframework/watchos-arm64_armv7k/" 2>/dev/null || true
     fi
     
     # Create zip archive
@@ -131,9 +174,14 @@ generate_checksum() {
     fi
 }
 
-# Build the specified framework
-build_framework "iphonesimulator" "generic/platform=iOS Simulator" "$PACKAGE_NAME"
-build_framework "iphoneos" "generic/platform=iOS" "$PACKAGE_NAME"
+# Build frameworks for all platforms
+echo "🏗️ Building for iOS..."
+build_framework "iphonesimulator" "generic/platform=iOS Simulator" "$PACKAGE_NAME" "IPHONEOS_DEPLOYMENT_TARGET=17.0" "ios"
+build_framework "iphoneos" "generic/platform=iOS" "$PACKAGE_NAME" "IPHONEOS_DEPLOYMENT_TARGET=17.0" "ios"
+
+echo "🏗️ Building for watchOS..."
+build_framework "watchsimulator" "generic/platform=watchOS Simulator" "$PACKAGE_NAME" "WATCHOS_DEPLOYMENT_TARGET=11.0" "watchos"
+build_framework "watchos" "generic/platform=watchOS" "$PACKAGE_NAME" "WATCHOS_DEPLOYMENT_TARGET=11.0" "watchos"
 
 echo "🏗️ Builds completed successfully."
 
@@ -148,3 +196,7 @@ echo "📁 Location: $PROJECT_BUILD_DIR/"
 echo "📦 Built framework: $PACKAGE_NAME.xcframework"
 echo "📦 Archive: $PACKAGE_NAME.xcframework.zip"
 echo "📦 Checksum: $PACKAGE_NAME.xcframework.sha256"
+echo ""
+echo "🎯 Supported platforms:"
+echo "  • iOS 17.0+ (Device & Simulator)"
+echo "  • watchOS 11.0+ (Device & Simulator)"

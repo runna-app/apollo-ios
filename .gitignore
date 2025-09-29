@@ -91,3 +91,5 @@ Tests/TestCodeGenConfigurations/EmbeddedInTarget-RelativeAbsolute/PackageTwo/Sou
 DerivedData-iphonesimulator
 DerivedData-iphoneos
 *.xcarchive
+DerivedData-watchos
+DerivedData-watchsimulator
