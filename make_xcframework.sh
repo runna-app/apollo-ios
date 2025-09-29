@@ -152,16 +152,11 @@ echo "📦 Checksum: $PACKAGE_NAME.xcframework.sha256"
 cleanup_artifacts() {
     echo "🧹 Cleaning up build artifacts..."
     
-    # Keep only .xcframework directories and related files
-    find "$PROJECT_BUILD_DIR" -maxdepth 1 -type f -name "*.xcframework.zip" -delete
-    find "$PROJECT_BUILD_DIR" -maxdepth 1 -type f -name "*.xcframework.sha256" -exec echo "📝 Keeping: {}" \;
-    find "$PROJECT_BUILD_DIR" -maxdepth 1 -type d -name "*.xcframework" -exec echo "📦 Keeping: {}" \;
-    
-    # Remove all other files and directories
+    # Remove build artifacts but keep .xcframework directories, .zip files, and checksums
     find "$PROJECT_BUILD_DIR" -maxdepth 1 -type d ! -name "*.xcframework" ! -name "$(basename "$PROJECT_BUILD_DIR")" -exec rm -rf {} +
-    find "$PROJECT_BUILD_DIR" -maxdepth 1 -type f ! -name "*.xcframework.sha256" -delete
+    find "$PROJECT_BUILD_DIR" -maxdepth 1 -type f ! -name "*.xcframework.zip" ! -name "*.xcframework.sha256" -delete
     
-    echo "✅ Cleanup completed! Only .xcframework files and checksums remain."
+    echo "✅ Cleanup completed! Kept: .xcframework directories, .zip files, and checksums."
 }
 
 cleanup_artifacts
