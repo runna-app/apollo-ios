@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd -P)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
-PROJECT_BUILD_DIR="${PROJECT_BUILD_DIR:-"${PROJECT_ROOT}/artifacts"}"
+PROJECT_BUILD_DIR="${PROJECT_BUILD_DIR:-"${PROJECT_ROOT}"}"
 XCODEBUILD_BUILD_DIR="$PROJECT_BUILD_DIR/xcodebuild"
 XCODEBUILD_DERIVED_DATA_PATH="$XCODEBUILD_BUILD_DIR/DerivedData"
 
@@ -148,15 +148,3 @@ echo "📁 Location: $PROJECT_BUILD_DIR/"
 echo "📦 Built framework: $PACKAGE_NAME.xcframework"
 echo "📦 Archive: $PACKAGE_NAME.xcframework.zip"
 echo "📦 Checksum: $PACKAGE_NAME.xcframework.sha256"
-
-cleanup_artifacts() {
-    echo "🧹 Cleaning up build artifacts..."
-    
-    # Remove build artifacts but keep .xcframework directories, .zip files, and checksums
-    find "$PROJECT_BUILD_DIR" -maxdepth 1 -type d ! -name "*.xcframework" ! -name "$(basename "$PROJECT_BUILD_DIR")" -exec rm -rf {} +
-    find "$PROJECT_BUILD_DIR" -maxdepth 1 -type f ! -name "*.xcframework.zip" ! -name "*.xcframework.sha256" -delete
-    
-    echo "✅ Cleanup completed! Kept: .xcframework directories, .zip files, and checksums."
-}
-
-cleanup_artifacts
