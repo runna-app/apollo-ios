@@ -13,16 +13,12 @@ Pod::Spec.new do |spec|
   spec.source       = { :path => "." }
   
   spec.vendored_frameworks = [
-    'artifacts/Apollo.xcframework',
     'artifacts/ApolloSQLite.xcframework',
-    'artifacts/ApolloAPI.xcframework',
   ]
   
   # Ensure the frameworks are preserved during installation
   spec.preserve_paths = [
-    'artifacts/Apollo.xcframework',
     'artifacts/ApolloSQLite.xcframework',
-    'artifacts/ApolloAPI.xcframework',
   ]
   
   # Add any required system frameworks
